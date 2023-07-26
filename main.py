@@ -1,25 +1,16 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Body
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from langchain.prompts import (
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate
-)
-from langchain.chains import ConversationChain
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory
+from langchain.schema import (
+    HumanMessage,
+)
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-prompt = ChatPromptTemplate.from_messages([
-    SystemMessagePromptTemplate.from_template(
-        "The following is a friendly conversation between a human and an AI. The AI is talkative and "
-        "provides lots of specific details from its context. If the AI does not know the answer to a "
-        "question, it truthfully says it does not know."
-    ),
-    MessagesPlaceholder(variable_name="history"),
-    HumanMessagePromptTemplate.from_template("{input}")
-])
+load_dotenv()
+OPENAI_API_KEY =os.getenv("OPENAI_API_KEY")
 
 
 app = FastAPI()
@@ -39,8 +30,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# openai_api_key="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"
-
 
 @app.get("/")
 async def root():
@@ -53,11 +42,13 @@ class ChatInput(BaseModel):
 
 @app.get("/chat/{question}")  # Adding question as a path parameter
 async def chat(question: str):
-    llm = ChatOpenAI(
-        openai_api_key="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",
-        temperature=0
-    )
-    memory = ConversationBufferMemory(return_messages=True)
-    conversation = ConversationChain(memory=memory, prompt=prompt, llm=llm)
-    resp = conversation.predict(input=question)
-    return resp
+    query = ChatOpenAI(
+        openai_api_key=OPENAI_API_KEY,
+        streaming=False,
+        callbacks=[StreamingStdOutCallbackHandler()],
+        temperature=0)
+    resp = query([HumanMessage(content=question)])
+    # Remove quotes and replace newline characters
+    content = resp.content.replace('"', '').replace('\n\n', '\n')
+    print(content)
+    return content
