@@ -101,11 +101,11 @@ def llm_thread(g: ThreadedGenerator, body: ChatInput):
             temperature=0,
             # temperature=0.7,
         )
-        body.messages
         messageChain = list(map(makeMessage, body.messages))
         query(messageChain)
 
     finally:
+        g.send("[DONE]")
         g.close()
 
 
